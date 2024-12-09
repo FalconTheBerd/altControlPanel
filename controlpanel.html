@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        button,
+        input[type="text"],
+        textarea {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #status,
+        #error {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        #status {
+            color: green;
+        }
+
+        #error {
+            color: red;
+        }
+
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            width: 80%;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        #output {
+            margin-top: 20px;
+            font-size: 16px;
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Control Panel</h1>
+    <h2>Enter IP Address</h2>
+    <input type="text" id="altIp" placeholder="Enter IP address">
+
+    <h2>Controls</h2>
+    <button id="requestScreenshot">Request Screenshot</button>
+    <button id="browseFiles">Browse Files</button>
+    <br>
+    <button id="listTasks">List Tasks</button>
+    <br>
+    <input type="text" id="taskInput" placeholder="Enter task name or PID">
+    <label>
+        <input type="checkbox" id="killAll"> Kill All by Name
+    </label>
+    <button id="killTask">Kill Task</button>
+    <br>
+    <h2>Run Terminal Command</h2>
+    <textarea id="commandInput" rows="4" cols="50" placeholder="Enter command to run"></textarea><br>
+    <button id="runCommand">Run Command</button>
+
+    <div id="status"></div>
+    <div id="error"></div>
+    <div id="output"></div>
+
+    <script>
+        // List Tasks
+        document.getElementById("listTasks").addEventListener("click", async () => {
+            const altIp = document.getElementById("altIp").value.trim();
+
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+
+            const taskListTable = document.querySelector("#taskList tbody");
+            const errorDiv = document.getElementById("error");
+
+            taskListTable.innerHTML = "";
+            errorDiv.textContent = "";
+
+            try {
+                const response = await fetch(`http://${altIp}:5000/list_tasks`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    taskListTable.innerHTML = result.tasks.map(
+                        (task) => `<tr><td>${task.name}</td><td>${task.pid}</td></tr>`
+                    ).join("");
+                } else {
+                    errorDiv.textContent = `Failed: ${result.error}`;
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Kill Task
+        document.getElementById("killTask").addEventListener("click", async () => {
+            const altIp = document.getElementById("altIp").value.trim();
+            const task = document.getElementById("taskInput").value.trim();
+            const killAll = document.getElementById("killAll").checked;
+
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+
+            if (!task) {
+                alert("Please enter a task name or PID.");
+                return;
+            }
+
+            const statusDiv = document.getElementById("status");
+            const errorDiv = document.getElementById("error");
+
+            statusDiv.textContent = "";
+            errorDiv.textContent = "";
+
+            try {
+                const response = await fetch(`http://${altIp}:5000/kill_task`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ task: killAll ? task : task })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    statusDiv.textContent = result.message;
+                } else {
+                    errorDiv.textContent = `Failed: ${result.error}`;
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Request Screenshot
+        document.getElementById("requestScreenshot").addEventListener("click", async () => {
+            const altIp = document.getElementById("altIp").value.trim();
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+
+            const statusDiv = document.getElementById("status");
+            const errorDiv = document.getElementById("error");
+
+            statusDiv.textContent = "";
+            errorDiv.textContent = "";
+
+            try {
+                const response = await fetch(`http://${altIp}:5000/screenshot`, { method: "POST" });
+                if (response.ok) {
+                    statusDiv.textContent = "Screenshot request sent successfully!";
+                } else {
+                    const errorText = await response.text();
+                    errorDiv.textContent = `Failed: ${errorText}`;
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Browse Files
+        document.getElementById("browseFiles").addEventListener("click", () => {
+            const altIp = document.getElementById("altIp").value.trim();
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+            window.open(`http://${altIp}:5000/files`, '_blank');
+        });
+
+        document.getElementById("listTasks").addEventListener("click", () => {
+            const altIp = document.getElementById("altIp").value.trim();
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+            window.open(`http://${altIp}:5000/list_tasks`, '_blank');
+        });
+
+        // Run Terminal Command
+        document.getElementById("runCommand").addEventListener("click", async () => {
+            const altIp = document.getElementById("altIp").value.trim();
+            const command = document.getElementById("commandInput").value.trim();
+
+            if (!altIp) {
+                alert("Please enter Alt's IP address.");
+                return;
+            }
+
+            if (!command) {
+                alert("Please enter a command.");
+                return;
+            }
+
+            const statusDiv = document.getElementById("status");
+            const errorDiv = document.getElementById("error");
+            const outputDiv = document.getElementById("output");
+
+            statusDiv.textContent = "";
+            errorDiv.textContent = "";
+            outputDiv.textContent = "";
+
+            try {
+                const response = await fetch(`http://${altIp}:5000/run_command`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ command })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.return_code === 0) {
+                        statusDiv.textContent = "Command executed successfully!";
+                        outputDiv.textContent = result.output || "No output.";
+                    } else {
+                        errorDiv.textContent = `Command executed with errors (return code: ${result.return_code})`;
+                        outputDiv.textContent = result.error || "No error message.";
+                    }
+                } else {
+                    const errorText = await response.text();
+                    errorDiv.textContent = `Failed: ${errorText}`;
+                }
+            } catch (error) {
+                errorDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+
+</html>
