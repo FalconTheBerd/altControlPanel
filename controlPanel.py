@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import socket
 import netifaces
 from ipaddress import ip_network, ip_interface
-
+import threading
 
 class ControlPanelApp:
     def __init__(self, root):
@@ -69,27 +69,30 @@ class ControlPanelApp:
         addr_info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
         ip = addr_info['addr']
         netmask = addr_info['netmask']
-        # Use ip_interface to automatically calculate the correct network range
         network = ip_interface(f"{ip}/{netmask}").network
         return str(network)
 
     def scan_network(self):
+        self.status_label.config(text="Scanning network...", fg="blue")
+        self.device_list["values"] = []
+        scan_thread = threading.Thread(target=self._scan_network_thread)
+        scan_thread.daemon = True
+        scan_thread.start()
+
+    def _scan_network_thread(self):
         try:
             network_range = self.get_network_range()
             port = 5000
-            self.status_label.config(text=f"Scanning network {network_range}...", fg="blue")
-            self.device_list["values"] = []
             devices = self._scan_network_for_port(network_range, port)
             if devices:
-                self.device_list["values"] = [f"{ip} ({hostname})" for ip, hostname in devices]
-                self.status_label.config(text="Scan complete. Select a device from the list.", fg="green")
+                device_list = [f"{ip} ({hostname})" for ip, hostname in devices]
+                self.root.after(0, self._update_device_list, device_list, "Scan complete. Select a device from the list.", "green")
             else:
-                self.status_label.config(text="No devices with port 5000 open were found.", fg="red")
+                self.root.after(0, self._update_device_list, [], "No devices with port 5000 open were found.", "red")
         except Exception as e:
-            self.status_label.config(text=f"Error during scan: {e}", fg="red")
+            self.root.after(0, self.status_label.config, {"text": f"Error during scan: {e}", "fg": "red"})
 
     def _scan_network_for_port(self, network_range, port):
-        """Scan the network for devices with the specified port open."""
         open_hosts = []
         with ThreadPoolExecutor(max_workers=50) as executor:
             results = executor.map(lambda ip: self._check_port(ip, port), [str(ip) for ip in ip_network(network_range)])
@@ -99,7 +102,6 @@ class ControlPanelApp:
         return open_hosts
 
     def _check_port(self, ip, port):
-        """Check if a specific port is open on an IP."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(5)
@@ -114,10 +116,14 @@ class ControlPanelApp:
             pass
         return None
 
+    def _update_device_list(self, device_list, status_message, status_color):
+        self.device_list["values"] = device_list
+        self.status_label.config(text=status_message, fg=status_color)
+
     def select_device(self, event):
         selected = self.device_list.get()
         if selected:
-            ip = selected.split(" ")[0]  # Extract IP from the selected item
+            ip = selected.split(" ")[0]
             self.ip_entry.delete(0, tk.END)
             self.ip_entry.insert(0, ip)
 
