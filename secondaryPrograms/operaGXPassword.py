@@ -1,4 +1,4 @@
-# Full Credits to LimerBoy
+# Full Credits to LimerBoy + Modifications by FalconTheBerd
 import os
 import re
 import json
