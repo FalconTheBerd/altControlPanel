@@ -101,6 +101,23 @@ class ControlPanelCLI:
         except Exception as e:
             print(f"Error: {e}")
 
+    def display_message(self, ip=None, message=""):
+        ip = ip or self.ip
+        if not ip:
+            print("IP address is not set.")
+            return
+        if not message:
+            print("No message provided.")
+            return
+        try:
+            response = requests.post(f"http://{ip}:5000/display_message", json={"message": message})
+            if response.ok:
+                print(f"Message displayed on {ip} successfully!")
+            else:
+                print(f"Error from {ip}: {response.text}")
+        except Exception as e:
+            print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     app = ControlPanelCLI()
@@ -113,7 +130,8 @@ if __name__ == "__main__":
         print("4. Browse Files")
         print("5. List Tasks")
         print("6. Run Command")
-        print("7. Exit")
+        print("7. Display Message")
+        print("8. Exit")
         choice = input("Select an option: ")
 
         if choice == "1":
@@ -133,6 +151,9 @@ if __name__ == "__main__":
             command = input("Enter the command to run: ")
             app.run_command(command=command)
         elif choice == "7":
+            message = input("Enter the message to display: ")
+            app.display_message(message=message)
+        elif choice == "8":
             print("Exiting...")
             break
         else:
