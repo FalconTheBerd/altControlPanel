@@ -13,64 +13,79 @@ class ControlPanelApp:
         self.root = root
         self.root.title("Control Panel")
         self.root.state("zoomed")
-        self.root.configure(padx=40, pady=40, bg="#f0f0f0")
+        self.root.configure(bg="#f0f0f0")
 
-        # IP Entry and Network Scan
-        ip_frame = tk.Frame(root, bg="#f0f0f0")
-        ip_frame.pack(pady=20)
-        tk.Label(ip_frame, text="Enter IP Address:", font=("Arial", 14), bg="#f0f0f0").pack(side=tk.LEFT, padx=10)
-        self.ip_entry = tk.Entry(ip_frame, width=30, font=("Arial", 14))
-        self.ip_entry.pack(side=tk.LEFT, padx=10)
-        tk.Button(ip_frame, text="Scan Network", font=("Arial", 14), command=self.scan_network).pack(side=tk.LEFT, padx=10)
+        # Top Frame for IP Controls
+        top_frame = tk.Frame(root, bg="#f0f0f0")
+        top_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        self.device_list = ttk.Combobox(root, font=("Arial", 14), state="readonly", width=50)
-        self.device_list.pack(pady=10)
+        tk.Label(top_frame, text="Enter IP Address:", font=("Arial", 12), bg="#f0f0f0").pack(side=tk.LEFT, padx=5)
+        self.ip_entry = tk.Entry(top_frame, width=25, font=("Arial", 12))
+        self.ip_entry.pack(side=tk.LEFT, padx=5)
+        tk.Button(top_frame, text="Scan Network", font=("Arial", 12), command=self.scan_network).pack(side=tk.LEFT, padx=5)
+
+        self.device_list = ttk.Combobox(top_frame, font=("Arial", 12), state="readonly", width=30)
+        self.device_list.pack(side=tk.LEFT, padx=10)
         self.device_list.bind("<<ComboboxSelected>>", self.select_device)
 
-        # Controls Section
-        controls_frame = tk.Frame(root, bg="#f0f0f0")
-        controls_frame.pack(pady=20)
-        tk.Button(controls_frame, text="Request Screenshot", font=("Arial", 14), command=self.request_screenshot).grid(row=0, column=0, padx=20, pady=10)
-        tk.Button(controls_frame, text="Browse Files", font=("Arial", 14), command=self.browse_files).grid(row=0, column=1, padx=20, pady=10)
-        tk.Button(controls_frame, text="List Tasks", font=("Arial", 14), command=self.list_tasks).grid(row=1, column=0, padx=20, pady=10)
+        # Split into left and right panels
+        main_frame = tk.Frame(root, bg="#f0f0f0")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-        # Task Controls
-        task_controls_frame = tk.Frame(controls_frame, bg="#f0f0f0")
-        task_controls_frame.grid(row=2, column=0, columnspan=2, pady=10)
-        self.task_entry = tk.Entry(task_controls_frame, width=20, font=("Arial", 14))
-        self.task_entry.pack(side=tk.LEFT, padx=10)
+        left_panel = tk.Frame(main_frame, bg="#f0f0f0")
+        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+
+        right_panel = tk.Frame(main_frame, bg="#f0f0f0")
+        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Left Panel - Buttons and Inputs
+        tk.Button(left_panel, text="Request Screenshot", font=("Arial", 12), width=25, command=self.request_screenshot).pack(pady=5)
+        tk.Button(left_panel, text="View Screen", font=("Arial", 12), width=25, command=self.view_screen).pack(pady=5)
+        tk.Button(left_panel, text="Browse Files", font=("Arial", 12), width=25, command=self.browse_files).pack(pady=5)
+        tk.Button(left_panel, text="List Tasks", font=("Arial", 12), width=25, command=self.list_tasks).pack(pady=5)
+
+        # Task kill section
+        self.task_entry = tk.Entry(left_panel, font=("Arial", 12), width=22)
+        self.task_entry.pack(pady=5)
         self.kill_all_var = tk.BooleanVar()
-        tk.Checkbutton(task_controls_frame, text="Kill All by Name", font=("Arial", 14), variable=self.kill_all_var, bg="#f0f0f0").pack(side=tk.LEFT, padx=10)
-        tk.Button(task_controls_frame, text="Kill Task", font=("Arial", 14), command=self.kill_task).pack(side=tk.LEFT, padx=10)
+        tk.Checkbutton(left_panel, text="Kill All by Name", font=("Arial", 12), variable=self.kill_all_var, bg="#f0f0f0").pack(pady=2)
+        tk.Button(left_panel, text="Kill Task", font=("Arial", 12), width=25, command=self.kill_task).pack(pady=5)
 
-        # Terminal Command Section
-        command_frame = tk.Frame(root, bg="#f0f0f0")
-        command_frame.pack(pady=20)
-        tk.Label(command_frame, text="Run Terminal Command:", font=("Arial", 14), bg="#f0f0f0").pack(anchor="w", pady=10)
-        self.command_input = scrolledtext.ScrolledText(command_frame, width=80, height=6, font=("Arial", 14))
-        self.command_input.pack(pady=10)
-        tk.Button(command_frame, text="Run Command", font=("Arial", 14), command=self.run_command).pack(pady=10)
+        # Message display section
+        tk.Label(left_panel, text="Display Message on Alt:", font=("Arial", 12), bg="#f0f0f0").pack(anchor="w", pady=(15, 0))
+        self.message_input = scrolledtext.ScrolledText(left_panel, width=30, height=4, font=("Arial", 12))
+        self.message_input.pack(pady=5)
+        tk.Button(left_panel, text="Send Message", font=("Arial", 12), width=25, command=self.display_message).pack(pady=5)
 
-        # Status and Output Section
-        status_frame = tk.Frame(root, bg="#f0f0f0")
-        status_frame.pack(pady=20)
-        self.status_label = tk.Label(status_frame, text="", font=("Arial", 14), fg="green", bg="#f0f0f0")
-        self.status_label.pack(anchor="w", pady=5)
-        self.error_label = tk.Label(status_frame, text="", font=("Arial", 14), fg="red", bg="#f0f0f0")
-        self.error_label.pack(anchor="w", pady=5)
-        output_frame = tk.Frame(root, bg="#f0f0f0")
-        output_frame.pack(pady=20)
-        self.output_text = scrolledtext.ScrolledText(output_frame, width=80, height=10, font=("Arial", 14))
-        self.output_text.pack()
+        # Right Panel - Command & Output
+        tk.Label(right_panel, text="Run Terminal Command:", font=("Arial", 12), bg="#f0f0f0").pack(anchor="w", pady=(0, 5))
+        self.command_input = scrolledtext.ScrolledText(right_panel, width=80, height=6, font=("Arial", 12))
+        self.command_input.pack(pady=5)
+        tk.Button(right_panel, text="Run Command", font=("Arial", 12), command=self.run_command).pack(pady=5)
+
+        self.output_text = scrolledtext.ScrolledText(right_panel, width=80, height=12, font=("Arial", 12))
+        self.output_text.pack(pady=(5, 0))
+
+        # Status Bar
+        status_bar = tk.Frame(root, bg="#f0f0f0")
+        status_bar.pack(fill=tk.X, padx=20, pady=10)
+        self.status_label = tk.Label(status_bar, text="", font=("Arial", 12), fg="green", bg="#f0f0f0")
+        self.status_label.pack(anchor="w")
+        self.error_label = tk.Label(status_bar, text="", font=("Arial", 12), fg="red", bg="#f0f0f0")
+        self.error_label.pack(anchor="w")
 
     def get_network_range(self):
-        """Dynamically calculate the network range based on the active network interface."""
         iface = netifaces.gateways()['default'][netifaces.AF_INET][1]
         addr_info = netifaces.ifaddresses(iface)[netifaces.AF_INET][0]
         ip = addr_info['addr']
         netmask = addr_info['netmask']
         network = ip_interface(f"{ip}/{netmask}").network
         return str(network)
+
+    def view_screen(self):
+        ip = self.get_ip()
+        if ip:
+            webbrowser.open(f"http://{ip}:5000/video_feed")
 
     def scan_network(self):
         self.status_label.config(text="Scanning network...", fg="blue")
@@ -178,12 +193,34 @@ class ControlPanelApp:
             response = requests.post(f"http://{ip}:5000/run_command", json={"command": command})
             if response.ok:
                 result = response.json()
-                if result.get("return_code") == 0:
+                output = result.get("output", "")
+                error = result.get("error", "")
+                code = result.get("return_code")
+
+                self.output_text.delete(1.0, tk.END)
+                if output:
+                    self.output_text.insert(tk.END, f"[STDOUT]\n{output}\n")
+                if error:
+                    self.output_text.insert(tk.END, f"[STDERR]\n{error}\n")
+
+                if code == 0:
                     self.status_label.config(text="Command executed successfully!", fg="green")
-                    self.output_text.delete(1.0, tk.END)
-                    self.output_text.insert(tk.END, result.get("output", "No output."))
                 else:
-                    self.error_label.config(text=f"Command errors: {result.get('error', 'Unknown error')} (Code: {result.get('return_code')})", fg="red")
+                    self.error_label.config(text=f"Command error (code {code})", fg="red")
+            else:
+                self.error_label.config(text=f"Failed: {response.text}", fg="red")
+        except Exception as e:
+            self.error_label.config(text=f"Error: {e}", fg="red")
+
+    def display_message(self):
+        ip = self.get_ip()
+        message = self.message_input.get("1.0", tk.END).strip()
+        if not ip or not message:
+            return
+        try:
+            response = requests.post(f"http://{ip}:5000/display_message", json={"message": message})
+            if response.ok:
+                self.status_label.config(text="Message sent to Alt successfully!", fg="green")
             else:
                 self.error_label.config(text=f"Failed: {response.text}", fg="red")
         except Exception as e:

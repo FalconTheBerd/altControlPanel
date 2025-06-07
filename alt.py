@@ -1,10 +1,13 @@
 # Full Credit to FalconTheBerd
 import subprocess
-from flask import Flask, request, jsonify, send_from_directory, render_template_string
+from flask import Flask, request, jsonify, send_from_directory, render_template_string, Response
 import os
 from PIL import ImageGrab
 import requests
 from flask_cors import CORS
+import time
+import cv2
+import numpy as np
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
@@ -15,6 +18,22 @@ BASE_DIRECTORY = os.path.expanduser("~")
 import tkinter as tk
 from tkinter import ttk
 from threading import Thread
+
+def generate_frames():
+    while True:
+        # Capture the screen
+        screen = ImageGrab.grab()
+        frame = cv2.cvtColor(np.array(screen), cv2.COLOR_RGB2BGR)
+
+        # Encode frame to JPEG
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+
+        # Yield frame in MJPEG format
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+        time.sleep(0.1)  # ~10 FPS
 
 def show_message(message):
     def display():
@@ -75,6 +94,10 @@ def display_message():
         return jsonify({"message": "Message displayed successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/kill_task', methods=['POST'])
 def kill_task():
