@@ -9,6 +9,12 @@ import time
 import cv2
 import numpy as np
 import ctypes
+import platform
+import sys
+
+if platform.system() != "Windows":
+    sys.stderr.write("alt.py is only supported on Windows.\n")
+    sys.exit(0)
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})

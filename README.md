@@ -4,6 +4,11 @@
 
 Alt Control Panel is a Python-based remote control application designed for managing a secondary computer (referred to as "Alt") over a network. It provides functionalities such as file management, task management, terminal command execution, and screenshot capture via a Flask web interface.
 
+> **Warning**
+> The server-side scripts (`alt.py`, `bootstrapper.py`, and the utilities in
+> `secondaryPrograms/`) rely on Windows-specific APIs. These programs will exit
+> immediately on non-Windows systems.
+
 ## Features
 
 - **File Management**:
@@ -127,7 +132,9 @@ Use the web interface to:
 
 ## Limitations
 
-- **Windows-Only**: Currently optimized for Windows operating systems.
+- **Windows-Only**: The server components run solely on Windows. Other
+  operating systems are not supported and the scripts will exit immediately on
+  those systems.
 - **Permissions**: Some directories or files may be inaccessible due to permission restrictions.
 - **Network Access**: Requires both machines to be on the same network or have proper port forwarding configured.
 
