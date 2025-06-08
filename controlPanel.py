@@ -39,7 +39,6 @@ class ControlPanelApp:
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # Left Panel - Buttons and Inputs
-        tk.Button(left_panel, text="Request Screenshot", font=("Arial", 12), width=25, command=self.request_screenshot).pack(pady=5)
         tk.Button(left_panel, text="View Screen", font=("Arial", 12), width=25, command=self.view_screen).pack(pady=5)
         tk.Button(left_panel, text="Browse Files", font=("Arial", 12), width=25, command=self.browse_files).pack(pady=5)
         tk.Button(left_panel, text="List Tasks", font=("Arial", 12), width=25, command=self.list_tasks).pack(pady=5)
@@ -151,19 +150,6 @@ class ControlPanelApp:
             ip = selected.split(" ")[0]
             self.ip_entry.delete(0, tk.END)
             self.ip_entry.insert(0, ip)
-
-    def request_screenshot(self):
-        ip = self.get_ip()
-        if not ip:
-            return
-        try:
-            response = requests.post(f"http://{ip}:5000/screenshot")
-            if response.ok:
-                self.status_label.config(text="Screenshot request sent successfully!", fg="green")
-            else:
-                self.error_label.config(text=f"Failed: {response.text}", fg="red")
-        except Exception as e:
-            self.error_label.config(text=f"Error: {e}", fg="red")
 
     def browse_files(self):
         ip = self.get_ip()
