@@ -11,7 +11,7 @@ import ctypes
 import platform
 import sys
 import argparse
-from werkzeug.serving import make_server
+from werkzeug.serving import make_server, ThreadedWSGIServer
 import socket
 
 if platform.system() != "Windows":
@@ -536,11 +536,13 @@ def delete_file():
 
 class ReusableServer:
     def __init__(self, app, host, port):
-        self.server = make_server(host, port, app)
+        self.server = make_server(host, port, app, ThreadedWSGIServer)
         self.server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def serve_forever(self):
+        print("[INFO] Threaded server started on port 5000.")
         self.server.serve_forever()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Alt Control Panel server')
