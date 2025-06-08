@@ -71,6 +71,19 @@ class ControlPanelApp:
         self.output_text = scrolledtext.ScrolledText(right_panel, width=80, height=12, font=("Arial", 12))
         self.output_text.pack(pady=(5, 0))
 
+        # Command Library - Quick command buttons
+        command_frame = tk.Frame(right_panel, bg="#f0f0f0")
+        command_frame.pack(pady=10)
+
+        commands = [
+            ("tasklist", "tasklist"),
+            ("ipconfig /all", "ipconfig /all"),
+            ("shutdown", "shutdown /r /t 0"),
+        ]
+        for label, cmd in commands:
+            tk.Button(command_frame, text=label, font=("Arial", 12),
+                      command=lambda c=cmd: self.fill_command(c)).pack(side=tk.LEFT, padx=5)
+
         # Status Bar
         status_bar = tk.Frame(root, bg="#f0f0f0")
         status_bar.pack(fill=tk.X, padx=20, pady=10)
@@ -235,6 +248,11 @@ class ControlPanelApp:
                 self.error_label.config(text=f"Failed: {response.text}", fg="red")
         except Exception as e:
             self.error_label.config(text=f"Error: {e}", fg="red")
+
+    def fill_command(self, command):
+        """Fill the command input with a predefined command."""
+        self.command_input.delete("1.0", tk.END)
+        self.command_input.insert(tk.END, command)
 
     def get_ip(self):
         ip = self.ip_entry.get().strip()
