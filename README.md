@@ -27,6 +27,7 @@ Alt Control Panel is a Python-based remote control application designed for mana
 - **Keystroke Simulation**:
   - Send keystrokes to Alt directly from the control panel using the Windows API.
   - System shortcuts like `Alt+Tab` work correctly for window switching.
+  - Separate commands with commas to send them sequentially, e.g., `Alt+Tab, Alt+Tab`.
 
 
 ## Requirements
@@ -55,6 +56,8 @@ pip install flask flask-cors pillow requests
 
 ## Usage
 
+  - Separate multiple combinations with commas, e.g., `Alt+Tab, Alt+Tab` to switch twice.
+  - You can chain commands with commas, such as `Alt+Tab, Alt+Tab` to cycle twice.
 ### 1. Running the Program on Alt
 1. Clone or copy the repository to the Alt machine.
 2. Start the script by running:
