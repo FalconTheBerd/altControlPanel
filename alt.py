@@ -10,6 +10,7 @@ import numpy as np
 import ctypes
 import platform
 import sys
+import argparse
 
 if platform.system() != "Windows":
     sys.stderr.write("alt.py is only supported on Windows.\n")
@@ -532,4 +533,11 @@ def delete_file():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    parser = argparse.ArgumentParser(description='Alt Control Panel server')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    args = parser.parse_args()
+
+    env_debug = os.environ.get('ALT_DEBUG', '0').lower() in {'1', 'true', 'yes'}
+    debug_mode = args.debug or env_debug
+
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
