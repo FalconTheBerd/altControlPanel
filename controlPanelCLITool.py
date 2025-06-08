@@ -49,20 +49,6 @@ class ControlPanelCLI:
         self.ip = ip
         print(f"IP address set to {self.ip}")
 
-    def request_screenshot(self, ip=None):
-        ip = ip or self.ip
-        if not ip:
-            print("IP address is not set.")
-            return
-        try:
-            response = requests.post(f"http://{ip}:5000/screenshot")
-            if response.ok:
-                print(f"Screenshot request sent to {ip} successfully!")
-            else:
-                print(f"Error from {ip}: {response.text}")
-        except Exception as e:
-            print(f"Error: {e}")
-
     def browse_files(self, ip=None):
         ip = ip or self.ip
         if not ip:
@@ -126,12 +112,11 @@ if __name__ == "__main__":
         print("\nControl Panel CLI")
         print("1. Scan Network")
         print("2. Set IP Address")
-        print("3. Request Screenshot")
-        print("4. Browse Files")
-        print("5. List Tasks")
-        print("6. Run Command")
-        print("7. Display Message")
-        print("8. Exit")
+        print("3. Browse Files")
+        print("4. List Tasks")
+        print("5. Run Command")
+        print("6. Display Message")
+        print("7. Exit")
         choice = input("Select an option: ")
 
         if choice == "1":
@@ -142,18 +127,16 @@ if __name__ == "__main__":
             ip = input("Enter the IP address: ")
             app.set_ip(ip)
         elif choice == "3":
-            app.request_screenshot()
-        elif choice == "4":
             app.browse_files()
-        elif choice == "5":
+        elif choice == "4":
             app.list_tasks()
-        elif choice == "6":
+        elif choice == "5":
             command = input("Enter the command to run: ")
             app.run_command(command=command)
-        elif choice == "7":
+        elif choice == "6":
             message = input("Enter the message to display: ")
             app.display_message(message=message)
-        elif choice == "8":
+        elif choice == "7":
             print("Exiting...")
             break
         else:

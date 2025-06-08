@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alt Control Panel is a Python-based remote control application designed for managing a secondary computer (referred to as "Alt") over a network. It provides functionalities such as file management, task management, terminal command execution, and screenshot capture via a Flask web interface.
+Alt Control Panel is a Python-based remote control application designed for managing a secondary computer (referred to as "Alt") over a network. It provides functionalities such as file management, task management, terminal command execution, and a live screen view via a Flask web interface.
 
 ## Features
 
@@ -17,14 +17,14 @@ Alt Control Panel is a Python-based remote control application designed for mana
   - View a list of all running tasks on Alt in a clean HTML table.
   - Kill specific tasks by name or PID (Process ID).
 
-- **Terminal Command Execution**:
+ - **Terminal Command Execution**:
   - Send commands to Alt's terminal remotely.
   - Receive output or error messages from executed commands.
 
-- **Screenshot Capture**:
-  - Capture screenshots of Alt's desktop.
-  - Automatically upload screenshots to a configured Discord webhook.
-- **Keystroke Simulation**:
+ - **Live Screen View**:
+  - View Alt's desktop in real time through the web interface.
+
+ - **Keystroke Simulation**:
   - Send keystrokes to Alt directly from the control panel using the Windows API.
   - System shortcuts like `Alt+Tab` work correctly for window switching.
   - Separate commands with commas to send them sequentially, e.g., `Alt+Tab, Alt+Tab`.
@@ -46,7 +46,7 @@ Alt Control Panel is a Python-based remote control application designed for mana
 3. **Python Dependencies**:
    - Flask
    - Flask-Cors
-   - Pillow (for screenshots)
+   - Pillow (for screen capture)
    - Requests
 
 Install these dependencies with:
@@ -87,7 +87,6 @@ pip install flask flask-cors pillow requests
 - `/run_command`: Execute terminal commands.
 - `/list_tasks`: View running tasks.
 - `/kill_task`: Kill tasks by name or PID.
-- `/screenshot`: Capture and upload screenshots.
 - `/run_file`: Execute files remotely.
 - `/keystroke`: Simulate keystrokes on Alt.
   - Use input like `Alt+Tab` to change windows remotely. System shortcuts are supported.
@@ -98,7 +97,6 @@ Use the web interface to:
 - Perform file operations.
 - View and manage running tasks.
 - Execute terminal commands.
-- Request screenshots.
 - Send keystrokes to Alt.
   - e.g., type `Alt+Tab` to switch windows using the native API.
 
@@ -107,7 +105,6 @@ Use the web interface to:
 
 1. **Web Interface**: The control panel provides an intuitive interface for sending commands to Alt.
 2. **Flask API**: Alt runs a Flask-based API server to process requests and perform tasks.
-3. **Discord Integration**: Screenshots are automatically sent to a Discord webhook for review.
 
 ## Example Commands
 
