@@ -124,6 +124,10 @@ def _send_keys_native(input_keys: str):
     for seq in sequences:
         tokens = [t.strip() for t in seq.split('+') if t.strip()]
 
+        # If no token is a known key, treat the plus sign as a literal character
+        if all(t.lower() not in vk_map and len(t) > 1 for t in tokens):
+            tokens = [seq]
+
         def vk_from_token(token: str):
             lower = token.lower()
             if lower in vk_map:
