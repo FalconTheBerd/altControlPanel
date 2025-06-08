@@ -8,6 +8,7 @@ from flask_cors import CORS
 import time
 import cv2
 import numpy as np
+import ctypes
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
@@ -95,6 +96,72 @@ def display_message():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _send_keys_native(input_keys: str):
+    """Send keystrokes using the Windows SendInput API."""
+    user32 = ctypes.windll.user32
+
+    KEYEVENTF_KEYUP = 0x0002
+
+    vk_map = {
+        "alt": 0x12,
+        "ctrl": 0x11,
+        "shift": 0x10,
+        "tab": 0x09,
+        "enter": 0x0D,
+        "esc": 0x1B,
+        "delete": 0x2E,
+        "backspace": 0x08,
+        "space": 0x20,
+        "up": 0x26,
+        "down": 0x28,
+        "left": 0x25,
+        "right": 0x27,
+    }
+    for i in range(1, 13):
+        vk_map[f"f{i}"] = 0x6F + i
+
+    sequences = [s.strip() for s in input_keys.split(',') if s.strip()]
+    for seq in sequences:
+        tokens = [t.strip() for t in seq.split('+') if t.strip()]
+
+        # If no token is a known key, treat the plus sign as a literal character
+        if all(t.lower() not in vk_map and len(t) > 1 for t in tokens):
+            tokens = [seq]
+
+        def vk_from_token(token: str):
+            lower = token.lower()
+            if lower in vk_map:
+                return vk_map[lower]
+            if len(token) == 1:
+                return ord(token.upper())
+            return None
+
+        expanded = []
+        for token in tokens:
+            vk = vk_from_token(token)
+            if vk is None and len(token) > 1:
+                expanded.extend(list(token))
+            else:
+                expanded.append(token)
+
+        modifiers = []
+        for token in expanded:
+            vk = vk_from_token(token)
+            if vk is None:
+                continue
+            if token.lower() in ("alt", "ctrl", "shift"):
+                user32.keybd_event(vk, 0, 0, 0)
+                modifiers.append(vk)
+            else:
+                user32.keybd_event(vk, 0, 0, 0)
+                user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+                time.sleep(0.05)
+
+        for vk in reversed(modifiers):
+            user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.05)
+
+
 @app.route('/keystroke', methods=['POST'])
 def keystroke():
     try:
@@ -102,15 +169,7 @@ def keystroke():
         if not keys:
             return jsonify({"error": "No keys provided"}), 400
 
-        escaped_keys = keys.replace("'", "''")
-        ps_script = (
-            f"$wshell = New-Object -ComObject WScript.Shell; "
-            f"$wshell.SendKeys('{escaped_keys}')"
-        )
-        subprocess.run(
-            ["powershell", "-Command", ps_script],
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
+        _send_keys_native(keys)
         return jsonify({"message": "Keystrokes sent"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

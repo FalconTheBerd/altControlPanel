@@ -25,7 +25,13 @@ Alt Control Panel is a Python-based remote control application designed for mana
   - Capture screenshots of Alt's desktop.
   - Automatically upload screenshots to a configured Discord webhook.
 - **Keystroke Simulation**:
-  - Send keystrokes to Alt directly from the control panel.
+  - Send keystrokes to Alt directly from the control panel using the Windows API.
+  - System shortcuts like `Alt+Tab` work correctly for window switching.
+  - Separate commands with commas to send them sequentially, e.g., `Alt+Tab, Alt+Tab`.
+  - You can repeat keys within a combo, such as `Alt+Tab+Tab` to move two windows ahead.
+  - Plain words can be typed normally without commas (e.g., `hello`).
+  - If a plus sign is used with no special keys (e.g., `peg+cat`), the `+` is typed as a normal character.
+
 
 ## Requirements
 
@@ -53,6 +59,12 @@ pip install flask flask-cors pillow requests
 
 ## Usage
 
+  - Separate multiple combinations with commas, e.g., `Alt+Tab, Alt+Tab` to switch twice.
+  - Plain text like `hello` will be typed character by character.
+  - A plus sign is typed normally when no special keys are present (e.g., `peg+cat`).
+  - You can chain commands with commas, such as `Alt+Tab, Alt+Tab` to cycle twice.
+  - Plain strings like `test` are typed normally.
+  - "peg+cat" will type the plus sign since no special keys are present.
 ### 1. Running the Program on Alt
 1. Clone or copy the repository to the Alt machine.
 2. Start the script by running:
@@ -78,6 +90,8 @@ pip install flask flask-cors pillow requests
 - `/screenshot`: Capture and upload screenshots.
 - `/run_file`: Execute files remotely.
 - `/keystroke`: Simulate keystrokes on Alt.
+  - Use input like `Alt+Tab` to change windows remotely. System shortcuts are supported.
+
 
 ### 4. Control Panel Interface
 Use the web interface to:
@@ -86,6 +100,8 @@ Use the web interface to:
 - Execute terminal commands.
 - Request screenshots.
 - Send keystrokes to Alt.
+  - e.g., type `Alt+Tab` to switch windows using the native API.
+
 
 ## How It Works
 
