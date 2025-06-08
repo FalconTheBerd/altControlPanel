@@ -71,6 +71,23 @@ class ControlPanelApp:
         self.output_text = scrolledtext.ScrolledText(right_panel, width=80, height=12, font=("Arial", 12))
         self.output_text.pack(pady=(5, 0))
 
+        # Command Library - Quick command buttons that run immediately
+        command_frame = tk.Frame(right_panel, bg="#f0f0f0")
+        command_frame.pack(pady=10)
+
+        commands = [
+            ("tasklist", "tasklist"),
+            ("ipconfig /all", "ipconfig /all"),
+            ("shutdown", "shutdown /r /t 0"),
+        ]
+        for label, cmd in commands:
+            tk.Button(
+                command_frame,
+                text=label,
+                font=("Arial", 12),
+                command=lambda c=cmd: self.run_command(c)
+            ).pack(side=tk.LEFT, padx=5)
+
         # Status Bar
         status_bar = tk.Frame(root, bg="#f0f0f0")
         status_bar.pack(fill=tk.X, padx=20, pady=10)
@@ -180,9 +197,12 @@ class ControlPanelApp:
         except Exception as e:
             self.error_label.config(text=f"Error: {e}", fg="red")
 
-    def run_command(self):
+    def run_command(self, command=None):
         ip = self.get_ip()
-        command = self.command_input.get("1.0", tk.END).strip()
+        if command is None:
+            command = self.command_input.get("1.0", tk.END).strip()
+        else:
+            command = command.strip()
         if not ip or not command:
             return
         try:
