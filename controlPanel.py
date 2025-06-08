@@ -57,6 +57,12 @@ class ControlPanelApp:
         self.message_input.pack(pady=5)
         tk.Button(left_panel, text="Send Message", font=("Arial", 12), width=25, command=self.display_message).pack(pady=5)
 
+        # Keystroke section
+        tk.Label(left_panel, text="Send Keystrokes:", font=("Arial", 12), bg="#f0f0f0").pack(anchor="w", pady=(15, 0))
+        self.keystroke_entry = tk.Entry(left_panel, font=("Arial", 12), width=22)
+        self.keystroke_entry.pack(pady=5)
+        tk.Button(left_panel, text="Send Keystrokes", font=("Arial", 12), width=25, command=self.send_keystrokes).pack(pady=5)
+
         # Right Panel - Command & Output
         tk.Label(right_panel, text="Run Terminal Command:", font=("Arial", 12), bg="#f0f0f0").pack(anchor="w", pady=(0, 5))
         self.command_input = scrolledtext.ScrolledText(right_panel, width=80, height=6, font=("Arial", 12))
@@ -225,6 +231,20 @@ class ControlPanelApp:
             response = requests.post(f"http://{ip}:5000/display_message", json={"message": message})
             if response.ok:
                 self.status_label.config(text="Message sent to Alt successfully!", fg="green")
+            else:
+                self.error_label.config(text=f"Failed: {response.text}", fg="red")
+        except Exception as e:
+            self.error_label.config(text=f"Error: {e}", fg="red")
+
+    def send_keystrokes(self):
+        ip = self.get_ip()
+        keys = self.keystroke_entry.get().strip()
+        if not ip or not keys:
+            return
+        try:
+            response = requests.post(f"http://{ip}:5000/keystroke", json={"keys": keys})
+            if response.ok:
+                self.status_label.config(text="Keystrokes sent successfully!", fg="green")
             else:
                 self.error_label.config(text=f"Failed: {response.text}", fg="red")
         except Exception as e:
