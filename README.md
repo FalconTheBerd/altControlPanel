@@ -28,6 +28,7 @@ Alt Control Panel is a Python-based remote control application designed for mana
   - Send keystrokes to Alt directly from the control panel using the Windows API.
   - System shortcuts like `Alt+Tab` work correctly for window switching.
 
+
 ## Requirements
 
 1. **Alt Machine**:
@@ -81,6 +82,7 @@ pip install flask flask-cors pillow requests
 - `/keystroke`: Simulate keystrokes on Alt.
   - Use input like `Alt+Tab` to change windows remotely. System shortcuts are supported.
 
+
 ### 4. Control Panel Interface
 Use the web interface to:
 - Perform file operations.
@@ -89,6 +91,7 @@ Use the web interface to:
 - Request screenshots.
 - Send keystrokes to Alt.
   - e.g., type `Alt+Tab` to switch windows using the native API.
+
 
 ## How It Works
 
