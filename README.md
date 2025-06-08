@@ -47,11 +47,13 @@ Alt Control Panel is a Python-based remote control application designed for mana
    - Flask
    - Flask-Cors
    - Pillow (for screenshots)
+   - OpenCV-Python
    - Requests
+   - Netifaces
 
 Install these dependencies with:
 ```bash
-pip install flask flask-cors pillow requests
+pip install -r requirements.txt
 ```
 
 4. **Optional**:

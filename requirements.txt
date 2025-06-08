@@ -1,1 +1,6 @@
-pip install flask pillow opencv-python requests netifaces
+flask
+flask-cors
+pillow
+opencv-python
+requests
+netifaces
