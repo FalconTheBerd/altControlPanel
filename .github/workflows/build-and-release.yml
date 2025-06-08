@@ -29,4 +29,4 @@ jobs:
         tag_name: v1.x
         files: dist/alt.exe
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{secrets.ALT_RELEASE_TOKEN}}
