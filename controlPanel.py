@@ -109,7 +109,9 @@ class ControlPanelApp:
 
     def _scan_network_for_port(self, network_range, port):
         open_hosts = []
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        # Use more worker threads to check multiple hosts concurrently
+        # for quicker scanning of the local network
+        with ThreadPoolExecutor(max_workers=100) as executor:
             results = executor.map(lambda ip: self._check_port(ip, port), [str(ip) for ip in ip_network(network_range)])
             for result in results:
                 if result:
@@ -119,7 +121,9 @@ class ControlPanelApp:
     def _check_port(self, ip, port):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(5)
+                # Reduce timeout per host so unreachable machines do not
+                # delay the overall scanning process
+                sock.settimeout(0.5)
                 result = sock.connect_ex((ip, port))
                 if result == 0:
                     try:
