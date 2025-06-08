@@ -24,8 +24,6 @@ Alt Control Panel is a Python-based remote control application designed for mana
 - **Screenshot Capture**:
   - Capture screenshots of Alt's desktop.
   - Automatically upload screenshots to a configured Discord webhook.
-- **Keystroke Simulation**:
-  - Send keystrokes to Alt directly from the control panel.
 
 ## Requirements
 
@@ -77,7 +75,6 @@ pip install flask flask-cors pillow requests
 - `/kill_task`: Kill tasks by name or PID.
 - `/screenshot`: Capture and upload screenshots.
 - `/run_file`: Execute files remotely.
-- `/keystroke`: Simulate keystrokes on Alt.
 
 ### 4. Control Panel Interface
 Use the web interface to:
@@ -85,7 +82,6 @@ Use the web interface to:
 - View and manage running tasks.
 - Execute terminal commands.
 - Request screenshots.
-- Send keystrokes to Alt.
 
 ## How It Works
 

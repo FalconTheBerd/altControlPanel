@@ -95,26 +95,6 @@ def display_message():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/keystroke', methods=['POST'])
-def keystroke():
-    try:
-        keys = request.json.get("keys")
-        if not keys:
-            return jsonify({"error": "No keys provided"}), 400
-
-        escaped_keys = keys.replace("'", "''")
-        ps_script = (
-            f"$wshell = New-Object -ComObject WScript.Shell; "
-            f"$wshell.SendKeys('{escaped_keys}')"
-        )
-        subprocess.run(
-            ["powershell", "-Command", ps_script],
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
-        return jsonify({"message": "Keystrokes sent"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
