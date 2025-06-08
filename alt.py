@@ -111,6 +111,7 @@ def _send_keys_native(input_keys: str):
         "esc": 0x1B,
         "delete": 0x2E,
         "backspace": 0x08,
+        "space": 0x20,
         "up": 0x26,
         "down": 0x28,
         "left": 0x25,
@@ -122,7 +123,6 @@ def _send_keys_native(input_keys: str):
     sequences = [s.strip() for s in input_keys.split(',') if s.strip()]
     for seq in sequences:
         tokens = [t.strip() for t in seq.split('+') if t.strip()]
-        modifiers = []
 
         def vk_from_token(token: str):
             lower = token.lower()
@@ -132,7 +132,16 @@ def _send_keys_native(input_keys: str):
                 return ord(token.upper())
             return None
 
+        expanded = []
         for token in tokens:
+            vk = vk_from_token(token)
+            if vk is None and len(token) > 1:
+                expanded.extend(list(token))
+            else:
+                expanded.append(token)
+
+        modifiers = []
+        for token in expanded:
             vk = vk_from_token(token)
             if vk is None:
                 continue
