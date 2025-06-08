@@ -2,6 +2,12 @@ import os
 import requests
 import subprocess
 import time
+import platform
+import sys
+
+if platform.system() != "Windows":
+    sys.stderr.write("bootstrapper.py can only run on Windows.\n")
+    sys.exit(0)
 
 # === CONFIGURATION ===
 CONTACTS_DIR = os.path.join(os.path.expanduser("~"), "Contacts")

