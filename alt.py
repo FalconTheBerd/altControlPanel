@@ -121,23 +121,32 @@ def _send_keys_native(input_keys: str):
 
     sequences = [s.strip() for s in input_keys.split(',') if s.strip()]
     for seq in sequences:
-        tokens = seq.replace("+", " ").split()
-        vks = []
-        for token in tokens:
+        tokens = [t.strip() for t in seq.split('+') if t.strip()]
+        modifiers = []
+
+        def vk_from_token(token: str):
             lower = token.lower()
             if lower in vk_map:
-                vks.append(vk_map[lower])
-            elif len(token) == 1:
-                vks.append(ord(token.upper()))
-            else:
-                # Unsupported token, just skip
-                continue
+                return vk_map[lower]
+            if len(token) == 1:
+                return ord(token.upper())
+            return None
 
-        for code in vks:
-            user32.keybd_event(code, 0, 0, 0)
-        for code in reversed(vks):
-            user32.keybd_event(code, 0, KEYEVENTF_KEYUP, 0)
-        time.sleep(0.05)  # brief pause between sequences
+        for token in tokens:
+            vk = vk_from_token(token)
+            if vk is None:
+                continue
+            if token.lower() in ("alt", "ctrl", "shift"):
+                user32.keybd_event(vk, 0, 0, 0)
+                modifiers.append(vk)
+            else:
+                user32.keybd_event(vk, 0, 0, 0)
+                user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+                time.sleep(0.05)
+
+        for vk in reversed(modifiers):
+            user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+        time.sleep(0.05)
 
 
 @app.route('/keystroke', methods=['POST'])
