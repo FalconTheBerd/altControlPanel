@@ -20,6 +20,56 @@ import tkinter as tk
 from tkinter import ttk
 from threading import Thread
 
+@app.route('/interactive_view')
+def interactive_view():
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Interactive Screen Control</title>
+        <style>
+            body, html { margin: 0; height: 100%; overflow: hidden; }
+            img { width: 100%; height: 100%; object-fit: cover; }
+        </style>
+    </head>
+    <body>
+        <img id="screen" src="/video_feed" onclick="sendClick(event)">
+        <script>
+            async function sendClick(e) {
+                const rect = e.target.getBoundingClientRect();
+                const x_ratio = e.clientX / rect.width;
+                const y_ratio = e.clientY / rect.height;
+                await fetch('/mouse_click', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ x_ratio, y_ratio })
+                });
+            }
+        </script>
+    </body>
+    </html>
+    '''
+
+@app.route('/mouse_click', methods=['POST'])
+def click_mouse():
+    try:
+        data = request.json
+        x_ratio = float(data.get("x_ratio"))
+        y_ratio = float(data.get("y_ratio"))
+
+        screen = ImageGrab.grab()
+        screen_width, screen_height = screen.size
+        x = int(x_ratio * screen_width)
+        y = int(y_ratio * screen_height)
+
+        ctypes.windll.user32.SetCursorPos(x, y)
+        ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)  # Left button down
+        ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)  # Left button up
+
+        return jsonify({"message": f"Clicked at ({x}, {y})"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 def generate_frames():
     while True:
         # Capture the screen
@@ -390,7 +440,6 @@ def run_file():
 @app.route('/list_tasks', methods=['GET'])
 def list_tasks():
     try:
-        # Run tasklist command with suppressed console window
         result = subprocess.run(
             ["tasklist"],
             capture_output=True,
@@ -400,59 +449,74 @@ def list_tasks():
         if result.returncode != 0:
             return f"<h1>Error: {result.stderr.strip()}</h1>", 500
 
-        tasks = []
-        lines = result.stdout.splitlines()
+        process_map = {}
 
-        # Skip the header rows (first three lines)
+        # Aggressive filtering of background/system/vendor processes
+        ignored_exact = {
+            "system", "idle", "registry", "memory", "secure", "svchost.exe", "lsass.exe",
+            "winlogon.exe", "wininit.exe", "services.exe", "fontdrvhost.exe", "ctfmon.exe",
+            "searchhost.exe", "searchindexer.exe", "searchprotocolhost.exe", "searchfilterhost.exe",
+            "runtimebroker.exe", "backgroundtaskhost.exe", "wudfhost.exe", "dwm.exe", "dashost.exe",
+            "taskhostw.exe", "explorer.exe", "smss.exe", "csrss.exe", "shellhost.exe",
+            "widgetservice.exe", "widgets.exe", "lockapp.exe", "appvshnotify.exe", "modernflyoutshost.exe",
+            "mpdefendercoreservice.exe", "msmpeng.exe", "sihost.exe", "audiodg.exe", "jhi_service.exe",
+            "wmiapsrv.exe", "wmiprvse.exe", "dllhost.exe", "conhost.exe", "tasklist.exe",
+            "servicehost.exe", "uihost.exe", "unsecapp.exe", "mdnsresponder.exe", "apsdaemon.exe",
+            "applemobiledeviceservice.", "dciservice.exe", "hpprintscandoctorservice.", "lenovovantageservice.exe",
+            "oneapp.igcc.winservice.ex", "crossdeviceservice.exe", "presentationfontcache.exe", "phoneexperiencehost.exe",
+            "aggregatorhost.exe", "applicationframehost.exe", "officeclicktorun.exe", "locator.exe", "ngciso.exe",
+            "lsaiso.exe", "nissrv.exe", "systemsettings.exe", "textinputhost.exe", "useroobebroker.exe",
+            "windowspackagemanagerserv", "webcompanion.exe", "steamservice.exe", "steamwebhelper.exe",
+            "rtkauduservice64.exe", "rtkbtmanserv.exe", "epicwebhelper.exe", "googledrivefs.exe",
+            "intelcphdcpsvc.exe", "intelcphecisvc.exe", "pad.automationserver.exe", "pad.bridgetouiautomation2.exe",
+            "pad.console.host.exe", "riotclientcrashhandler.ex", "rstmwservice.exe", "esif_uf.exe"
+        }
+
+        ignored_prefixes = [
+            "logi_", "lenovovantage-", "lenovo.modern.imcontrolle", "lghub_", "ms-teamsupdate", "pad.", "riotclient"
+        ]
+
+
+        lines = result.stdout.splitlines()
         for line in lines[3:]:
-            parts = line.split(maxsplit=1)  # Split the line into task name and remaining details
+            parts = line.split(maxsplit=1)
             if len(parts) >= 2:
-                task_info = parts[1].split()  # Split the remaining details to get PID
+                task_info = parts[1].split()
                 task_name = parts[0]
                 pid = task_info[0] if task_info else "Unknown"
-                tasks.append({"name": task_name, "pid": pid})
+                lower = task_name.lower()
 
-        # Generate HTML Table
+                if lower in ignored_exact or any(lower.startswith(pfx) for pfx in ignored_prefixes):
+                    continue
+
+                if task_name not in process_map:
+                    process_map[task_name] = []
+                process_map[task_name].append(pid)
+
         html_table = """
         <html>
         <head>
-            <title>Task List</title>
+            <title>Task List (Filtered)</title>
             <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 20px;
-                }
-                table {
-                    width: 80%;
-                    border-collapse: collapse;
-                    margin: 20px auto;
-                }
-                th, td {
-                    border: 1px solid #ddd;
-                    padding: 8px;
-                    text-align: left;
-                }
-                th {
-                    background-color: #f2f2f2;
-                }
-                tr:nth-child(even) {
-                    background-color: #f9f9f9;
-                }
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                table { width: 80%; border-collapse: collapse; margin: 20px auto; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
             </style>
         </head>
         <body>
-            <h1 style="text-align: center;">Running Tasks</h1>
+            <h1 style="text-align: center;">Running Tasks (Filtered & Grouped)</h1>
             <table>
                 <thead>
-                    <tr>
-                        <th>Task Name</th>
-                        <th>PID</th>
-                    </tr>
+                    <tr><th>Task Name</th><th>PIDs</th><th>Count</th></tr>
                 </thead>
                 <tbody>
         """
-        for task in tasks:
-            html_table += f"<tr><td>{task['name']}</td><td>{task['pid']}</td></tr>"
+
+        for task_name, pids in sorted(process_map.items()):
+            pid_list = ", ".join(pids)
+            html_table += f"<tr><td>{task_name}</td><td>{pid_list}</td><td>{len(pids)}</td></tr>"
 
         html_table += """
                 </tbody>
@@ -461,9 +525,9 @@ def list_tasks():
         </html>
         """
         return html_table, 200
+
     except Exception as e:
         return f"<h1>Error: {str(e)}</h1>", 500
-
 
 @app.route('/delete', methods=['POST'])
 def delete_file():

@@ -91,7 +91,7 @@ class ControlPanelApp:
     def view_screen(self):
         ip = self.get_ip()
         if ip:
-            webbrowser.open(f"http://{ip}:5000/video_feed")
+            webbrowser.open(f"http://{ip}:5000/interactive_view")
 
     def scan_network(self):
         self.status_label.config(text="Scanning network...", fg="blue")
