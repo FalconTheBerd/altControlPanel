@@ -8,6 +8,7 @@ from flask_cors import CORS
 import time
 import cv2
 import numpy as np
+import ctypes
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
@@ -92,6 +93,59 @@ def display_message():
 
         show_message(message)
         return jsonify({"message": "Message displayed successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def _send_keys_native(input_keys: str):
+    """Send keystrokes using the Windows SendInput API."""
+    user32 = ctypes.windll.user32
+
+    KEYEVENTF_KEYUP = 0x0002
+
+    vk_map = {
+        "alt": 0x12,
+        "ctrl": 0x11,
+        "shift": 0x10,
+        "tab": 0x09,
+        "enter": 0x0D,
+        "esc": 0x1B,
+        "delete": 0x2E,
+        "backspace": 0x08,
+        "up": 0x26,
+        "down": 0x28,
+        "left": 0x25,
+        "right": 0x27,
+    }
+    for i in range(1, 13):
+        vk_map[f"f{i}"] = 0x6F + i
+
+    tokens = input_keys.replace("+", " ").split()
+    vks = []
+    for token in tokens:
+        lower = token.lower()
+        if lower in vk_map:
+            vks.append(vk_map[lower])
+        elif len(token) == 1:
+            vks.append(ord(token.upper()))
+        else:
+            # Unsupported token, just skip
+            continue
+
+    for code in vks:
+        user32.keybd_event(code, 0, 0, 0)
+    for code in reversed(vks):
+        user32.keybd_event(code, 0, KEYEVENTF_KEYUP, 0)
+
+
+@app.route('/keystroke', methods=['POST'])
+def keystroke():
+    try:
+        keys = request.json.get("keys")
+        if not keys:
+            return jsonify({"error": "No keys provided"}), 400
+
+        _send_keys_native(keys)
+        return jsonify({"message": "Keystrokes sent"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
