@@ -1,0 +1,32 @@
+name: Build alt.exe and update release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: pip install pyinstaller pillow flask opencv-python-headless numpy
+
+    - name: Build alt.exe
+      run: pyinstaller alt.py --onefile --noconsole --name alt
+
+    - name: Upload alt.exe to release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.x
+        files: dist/alt.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
