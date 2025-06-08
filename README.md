@@ -145,3 +145,7 @@ Use the web interface to:
 ## Notes
 
 This program is intended for personal use and should not be deployed in environments with sensitive data unless properly secured. It is designed for education and utility purposes. Misuse may lead to unintended consequences.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
