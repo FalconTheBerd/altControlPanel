@@ -11,6 +11,8 @@ import ctypes
 import platform
 import sys
 import argparse
+from werkzeug.serving import make_server
+import socket
 
 if platform.system() != "Windows":
     sys.stderr.write("alt.py is only supported on Windows.\n")
@@ -532,6 +534,14 @@ def delete_file():
         return f"Error deleting file: {e}", 500
 
 
+class ReusableServer:
+    def __init__(self, app, host, port):
+        self.server = make_server(host, port, app)
+        self.server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    def serve_forever(self):
+        self.server.serve_forever()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Alt Control Panel server')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
@@ -540,4 +550,9 @@ if __name__ == '__main__':
     env_debug = os.environ.get('ALT_DEBUG', '0').lower() in {'1', 'true', 'yes'}
     debug_mode = args.debug or env_debug
 
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    try:
+        print("[INFO] Starting Flask server with SO_REUSEADDR...")
+        server = ReusableServer(app, '0.0.0.0', 5000)
+        server.serve_forever()
+    except Exception as e:
+        print(f"[FATAL ERROR] Failed to bind server: {e}")
