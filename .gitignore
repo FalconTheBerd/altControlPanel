@@ -1,3 +1,5 @@
 /build
 /exe
 /specs
+/.vscode
+test_alt.py
