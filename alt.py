@@ -1,6 +1,6 @@
 # Full Credit to FalconTheBerd
 import subprocess
-from flask import Flask, request, jsonify, send_from_directory, render_template_string, Response
+from flask import Flask, request, jsonify, send_from_directory, render_template_string, Response, abort
 import os
 from PIL import ImageGrab
 from flask_cors import CORS
@@ -26,6 +26,45 @@ BASE_DIRECTORY = os.path.expanduser("~")
 import tkinter as tk
 from tkinter import ttk
 from threading import Thread
+
+@app.route('/download', methods=['GET'])
+def download():
+    # Query params coming from your /files UI
+    directory = request.args.get('dir', BASE_DIRECTORY)
+    filename = request.args.get('file')
+
+    if not filename:
+        return "Missing 'file' parameter.", 400
+
+    # Normalize and harden paths
+    directory = os.path.normpath(directory)
+    abs_base = os.path.abspath(BASE_DIRECTORY)
+    abs_dir = os.path.abspath(directory)
+
+    # Block attempts to escape the allowed base directory
+    try:
+        if os.path.commonpath([abs_base, abs_dir]) != abs_base:
+            return "Access denied.", 403
+    except ValueError:
+        return "Invalid path.", 400
+
+    # Build the final file path and validate
+    file_path = os.path.normpath(os.path.join(abs_dir, filename))
+    if not os.path.exists(file_path):
+        return "File not found.", 404
+    if os.path.isdir(file_path):
+        return "Cannot download a directory.", 400
+    if not os.access(file_path, os.R_OK):
+        return "File is not readable.", 403
+
+    # Serve as an attachment
+    # Flask 2.x: send_from_directory(directory, path, **kwargs)
+    return send_from_directory(
+        directory=abs_dir,
+        path=os.path.basename(file_path),
+        as_attachment=True,
+        download_name=os.path.basename(file_path)  # optional; controls the save-as name
+    )
 
 @app.route('/interactive_view')
 def interactive_view():
