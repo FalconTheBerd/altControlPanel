@@ -19,6 +19,56 @@ if platform.system() != "Windows":
     sys.exit(0)
 
 app = Flask(__name__)
+
+# ---------- Webcam viewer: list + live MJPEG feed ----------
+def _probe_cameras(max_index: int = 8):
+    """Return a list of available camera indices and labels."""
+    found = []
+    for i in range(max_index):
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)  # DShow is reliable on Windows
+        if cap is not None and cap.isOpened():
+            # Try to read one frame to verify it truly works
+            ok, _ = cap.read()
+            if ok:
+                found.append({"index": i, "label": f"Camera {i}"})
+        if cap is not None:
+            cap.release()
+    return found
+
+def _generate_cam_frames(index: int, width: int | None = None, height: int | None = None, fps: int = 15):
+    """Yield JPEG frames from a webcam as an MJPEG stream."""
+    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        # Yield a single tiny JPEG explaining the issue
+        err = f"Unable to open camera index {index}".encode("utf-8")
+        blank = np.full((80, 600, 3), 255, dtype=np.uint8)
+        cv2.putText(blank, err.decode(), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2, cv2.LINE_AA)
+        ok, buf = cv2.imencode(".jpg", blank)
+        if ok:
+            yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
+        return
+
+    try:
+        if width:  cap.set(cv2.CAP_PROP_FRAME_WIDTH,  width)
+        if height: cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+        delay = max(0.0, 1.0 / max(1, fps))
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                # brief pause then try again
+                time.sleep(0.1)
+                continue
+            ok, buffer = cv2.imencode(".jpg", frame)
+            if not ok:
+                continue
+            yield (b"--frame\r\n"
+                   b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
+            time.sleep(delay)
+    finally:
+        cap.release()
+        
+        
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": "*"}})
 
 BASE_DIRECTORY = os.path.expanduser("~")
@@ -26,6 +76,147 @@ BASE_DIRECTORY = os.path.expanduser("~")
 import tkinter as tk
 from tkinter import ttk
 from threading import Thread
+
+
+@app.route("/webcams")
+def webcams_page():
+    """Landing page: lists available webcams and provides viewers."""
+    cams = _probe_cameras()
+    # Basic HTML similar spirit to /files
+    html = """
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Webcams</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .cam { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+        .preview { width: 100%; aspect-ratio: 16/9; object-fit: cover; background:#f7f7f7; }
+        a { color: #06c; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .note { color: #555; margin: 8px 0 16px; }
+      </style>
+    </head>
+    <body>
+      <h1>Available Webcams</h1>
+      <div class="note">Click a camera to open a full feed. You can also view inline previews below.</div>
+      {% if cams %}
+        <div class="grid">
+        {% for cam in cams %}
+          <div class="cam">
+            <h3>{{ cam.label }} (index {{ cam.index }})</h3>
+            <div>
+              <a href="/webcam?index={{ cam.index }}">Open viewer</a> |
+              <a href="/snapshot?index={{ cam.index }}" target="_blank">Snapshot</a>
+            </div>
+            <img class="preview" src="/webcam_feed?index={{ cam.index }}&fps=10" />
+          </div>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p><strong>No cameras detected.</strong> Try plugging one in and refresh.</p>
+      {% endif %}
+      <hr>
+      <p><a href="/files">Go to File Browser</a> · <a href="/interactive_view">Screen Viewer</a></p>
+    </body>
+    </html>
+    """
+    return render_template_string(html, cams=cams)
+
+@app.route("/webcam")
+def webcam_viewer():
+    """Single-camera viewer page, with optional size/fps controls via querystring."""
+    try:
+        idx = int(request.args.get("index", "0"))
+    except ValueError:
+        idx = 0
+    width  = request.args.get("w")  # e.g. 1280
+    height = request.args.get("h")  # e.g. 720
+    fps    = request.args.get("fps", "15")
+
+    html = """
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Webcam {{ idx }}</title>
+      <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        header { padding: 12px 16px; border-bottom: 1px solid #ddd; display:flex; gap:12px; align-items:center; }
+        main { display:flex; height: calc(100vh - 56px); }
+        img { width: 100%; height: 100%; object-fit: contain; background:#000; }
+        input, select, button { padding:6px 8px; }
+        label { font-size: 14px; color: #333; }
+      </style>
+    </head>
+    <body>
+      <header>
+        <strong>Webcam index {{ idx }}</strong>
+        <form id="opts" onsubmit="apply(event)">
+          <label>W <input type="number" id="w" placeholder="e.g. 1280" value="{{ width or '' }}"></label>
+          <label>H <input type="number" id="h" placeholder="e.g. 720" value="{{ height or '' }}"></label>
+          <label>FPS <input type="number" id="fps" placeholder="15" value="{{ fps }}"></label>
+          <button>Apply</button>
+          <a href="/webcams" style="margin-left:8px;">Back</a>
+        </form>
+      </header>
+      <main>
+        <img id="feed" src="">
+      </main>
+      <script>
+        function apply(e){
+          e && e.preventDefault();
+          const w = document.getElementById('w').value;
+          const h = document.getElementById('h').value;
+          const fps = document.getElementById('fps').value || 15;
+          const params = new URLSearchParams({ index: "{{ idx }}", fps });
+          if (w) params.set('w', w);
+          if (h) params.set('h', h);
+          document.getElementById('feed').src = '/webcam_feed?' + params.toString();
+        }
+        apply();
+      </script>
+    </body>
+    </html>
+    """
+    return render_template_string(html, idx=idx, width=width, height=height, fps=fps)
+
+@app.route("/webcam_feed")
+def webcam_feed():
+    """MJPEG stream from a webcam: /webcam_feed?index=0&w=1280&h=720&fps=15"""
+    try:
+        idx = int(request.args.get("index", "0"))
+    except ValueError:
+        idx = 0
+    width  = request.args.get("w", type=int)
+    height = request.args.get("h", type=int)
+    fps    = request.args.get("fps", type=int, default=15)
+    return Response(_generate_cam_frames(idx, width, height, fps),
+                    mimetype="multipart/x-mixed-replace; boundary=frame")
+
+@app.route("/snapshot")
+def snapshot():
+    """Return a single JPEG snapshot from the selected webcam."""
+    try:
+        idx = int(request.args.get("index", "0"))
+    except ValueError:
+        idx = 0
+    cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        abort(404, description=f"Unable to open camera index {idx}")
+    try:
+        ok, frame = cap.read()
+    finally:
+        cap.release()
+    if not ok:
+        abort(500, description="Failed to capture frame")
+    ok, buf = cv2.imencode(".jpg", frame)
+    if not ok:
+        abort(500, description="Failed to encode JPEG")
+    return Response(buf.tobytes(), mimetype="image/jpeg")
+# ---------- /Webcam viewer ----------
 
 @app.route('/download', methods=['GET'])
 def download():
