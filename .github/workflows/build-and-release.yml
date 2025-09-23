@@ -2,31 +2,64 @@ name: Build alt.exe and update release
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-release:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: pip install pyinstaller pillow flask opencv-python-headless numpy
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Build alt.exe
-      run: pyinstaller alt.py --onefile --noconsole --name alt
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          pip install pyinstaller pillow flask opencv-python-headless numpy
 
-    - name: Upload alt.exe to release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v1.x
-        files: dist/alt.exe
-      env:
-        GITHUB_TOKEN: ${{secrets.ALT_RELEASE_TOKEN}}
+      - name: Build alt.exe
+        run: pyinstaller alt.py --onefile --noconsole --name alt
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "dist/alt.exe")) { throw "dist/alt.exe not found" }
+
+      - name: Upload artifact (for this run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: alt-windows
+          path: dist/alt.exe
+
+      - name: Publish/Update Release v1.x (using PAT)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.x
+          name: alt (rolling)
+          body: "Automated rolling build for commit ${{ github.sha }}"
+          files: dist/alt.exe
+          draft: false
+          prerelease: false
+          make_latest: true
+          overwrite: true
+        env:
+          # Use your Personal Access Token secret
+          GITHUB_TOKEN: ${{ secrets.ALT_RELEASE_TOKEN }}
