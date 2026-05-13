@@ -264,22 +264,85 @@ def interactive_view():
     <html>
     <head>
         <title>Interactive Screen Control</title>
+
         <style>
-            body, html { margin: 0; height: 100%; overflow: hidden; }
-            img { width: 100%; height: 100%; object-fit: cover; }
+            body, html {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                background: black;
+            }
+
+            #screen {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                display: block;
+            }
         </style>
     </head>
+
     <body>
         <img id="screen" src="/video_feed" onclick="sendClick(event)">
+
         <script>
             async function sendClick(e) {
-                const rect = e.target.getBoundingClientRect();
-                const x_ratio = e.clientX / rect.width;
-                const y_ratio = e.clientY / rect.height;
+                const img = e.target;
+                const rect = img.getBoundingClientRect();
+
+                // Real image aspect ratio
+                const imgAspect = img.naturalWidth / img.naturalHeight;
+
+                // Browser display aspect ratio
+                const rectAspect = rect.width / rect.height;
+
+                let displayedWidth, displayedHeight;
+                let offsetX, offsetY;
+
+                if (rectAspect > imgAspect) {
+                    // Black bars on left/right
+                    displayedHeight = rect.height;
+                    displayedWidth = displayedHeight * imgAspect;
+
+                    offsetX = (rect.width - displayedWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Black bars on top/bottom
+                    displayedWidth = rect.width;
+                    displayedHeight = displayedWidth / imgAspect;
+
+                    offsetX = 0;
+                    offsetY = (rect.height - displayedHeight) / 2;
+                }
+
+                // Mouse position relative to image element
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Ignore clicks outside actual image area
+                if (
+                    mouseX < offsetX ||
+                    mouseX > offsetX + displayedWidth ||
+                    mouseY < offsetY ||
+                    mouseY > offsetY + displayedHeight
+                ) {
+                    return;
+                }
+
+                // Convert to ratios
+                const x_ratio = (mouseX - offsetX) / displayedWidth;
+                const y_ratio = (mouseY - offsetY) / displayedHeight;
+
                 await fetch('/mouse_click', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ x_ratio, y_ratio })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        x_ratio: x_ratio,
+                        y_ratio: y_ratio
+                    })
                 });
             }
         </script>
@@ -287,25 +350,38 @@ def interactive_view():
     </html>
     '''
 
+
 @app.route('/mouse_click', methods=['POST'])
 def click_mouse():
     try:
         data = request.json
+
         x_ratio = float(data.get("x_ratio"))
         y_ratio = float(data.get("y_ratio"))
 
+        # Get real screen resolution
         screen = ImageGrab.grab()
         screen_width, screen_height = screen.size
+
+        # Convert ratios to actual coordinates
         x = int(x_ratio * screen_width)
         y = int(y_ratio * screen_height)
 
+        # Move mouse
         ctypes.windll.user32.SetCursorPos(x, y)
-        ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)  # Left button down
-        ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)  # Left button up
 
-        return jsonify({"message": f"Clicked at ({x}, {y})"}), 200
+        # Left click
+        ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)  # Left down
+        ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)  # Left up
+
+        return jsonify({
+            "message": f"Clicked at ({x}, {y})"
+        }), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 def generate_frames():
     while True:
